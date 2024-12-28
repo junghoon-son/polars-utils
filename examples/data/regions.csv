@@ -1,0 +1,11 @@
+region_id,region_name,country,timezone
+"901",Northeast,USA,EST
+"902",Southeast,USA,EST
+"903",Midwest,USA,CST
+"904",West,USA,PST
+"905",Southwest,USA,MST
+"906",Northwest,USA,PST
+"907",Central,USA,CST
+"908",Alaska,USA,AKST
+"909",Hawaii,USA,HST
+"910",Atlantic,USA,AST 
