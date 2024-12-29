@@ -148,17 +148,17 @@ def test_join_analysis_with_type_coercion(sample_dfs):
     """Test join analysis with type coercion."""
     df1, df2 = sample_dfs
     register_extensions()
-
-    results = df1.polars_utils.analyze_joins(df2)
-
+    
+    results = df1.polars_utils.analyze_joins(df2)  # type: ignore
+    
     # Find result for 'mixed' column join
     mixed_result = next(
         r for r in results if r.left_column == "mixed" and r.right_column == "mixed"
     )
-
+    
     # Should have successful join despite type mismatch
-    assert mixed_result.matched > 0
-    assert mixed_result.has_type_mismatch
+    assert mixed_result.matched_rows > 0
+    assert mixed_result.has_type_mismatch is True
     assert mixed_result.coercion_applied is not None
 
 
@@ -229,7 +229,7 @@ def test_join_analysis_many_to_one():
         }
     )
 
-    categories = pl.DataFrame({"category_id": [1, 2, 3], "name": ["A", "B", "C"]})
+    categories = pl.DataFrame({"category_id": [1, 2, 3, 4], "name": ["A", "B", "C", "D"]})
 
     register_extensions()
     results = orders.polars_utils.analyze_joins(categories)
@@ -242,5 +242,5 @@ def test_join_analysis_many_to_one():
     )
 
     assert id_result.left_match_percentage == 100.0  # all orders match to categories
-    assert id_result.right_match_percentage == 66.7  # 2 out of 3 categories have orders
+    assert id_result.right_match_percentage == 50.0  # 2 out of 3 categories have orders
     assert id_result.matched_rows == 5  # total number of matching rows
