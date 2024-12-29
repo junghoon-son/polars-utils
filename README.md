@@ -23,18 +23,21 @@ pip install polars-utils
 import polars as pl
 from polars_utils import register_extensions
 
-# Register the extensions
 register_extensions()
 
 # Create sample DataFrames
 df1 = pl.DataFrame({
-    "id": [1, 2, 3, 4],
-    "name": ["A", "B", "C", "D"]
+    "id": [1, 2, 3, 4, None],
+    "name": ["A", "B", "C", "D", "E"],
+    "value": [10, 20, 30, 40, 50],
+    "mixed": ["1", "2", "3", "4", "5"]
 })
 
 df2 = pl.DataFrame({
-    "id": [1, 2, 3, 5],
-    "score": [100, 200, 300, 400]
+    "id": [1, 2, 3, 3, None],
+    "name": ["A", "B", "C", "C", "F"],
+    "score": [100, 200, 300, 400, 500],
+    "mixed": [1, 2, 3, 4, 5]
 })
 
 # Analyze join possibilities
@@ -43,41 +46,64 @@ df1.polars_utils.join_analysis(df2)
 
 Output:
 ```
-                                              Join Analysis Results                                               
-╔═════════════╦══════════════╦════════════════╦══════════════╦═══════════════╦═════════╦═════════════════════════╗
-║ Left Column ║ Right Column ║ Types          ║ Left Match % ║ Right Match % ║ Matched ║ Coercion Applied        ║
-╠═════════════╬══════════════╬════════════════╬══════════════╬═══════════════╬═════════╬═════════════════════════╣
-║ id          ║ id           ║ Int64          ║ 75.0%        ║ 75.0%         ║ 3       ║ -                       ║
-║ id          ║ score        ║ Int64          ║ -            ║ -             ║ -       ║ -                       ║
-║ name        ║ id           ║ String ↔ Int64 ║ -            ║ -             ║ -       ║ Coerced right to String ║
-║ name        ║ score        ║ String ↔ Int64 ║ -            ║ -             ║ -       ║ Coerced right to String ║
-╚═════════════╩══════════════╩════════════════╩══════════════╩═══════════════╩═════════╩═════════════════════════╝
+                                             Join Analysis Results                                              
+╔═════════════╦══════════════╦════════════════╦══════════════╦═══════════════╦══════════════╦══════════════════╗
+║ Left Column ║ Right Column ║ Types          ║ Left Match % ║ Right Match % ║ Matched Rows ║ Coercion Applied ║
+╠═════════════╬══════════════╬════════════════╬══════════════╬═══════════════╬══════════════╬══════════════════╣
+║ mixed       ║ mixed        ║ String ↔ Int64 ║ 100.0%       ║ 100.0%        ║ 5            ║ R → String       ║
+║ id          ║ mixed        ║ Int64          ║ 80.0%        ║ 80.0%         ║ 4            ║ -                ║
+║ id          ║ id           ║ Int64          ║ 60.0%        ║ 80.0%         ║ 4            ║ -                ║
+║ name        ║ name         ║ String         ║ 60.0%        ║ 80.0%         ║ 4            ║ -                ║
+╚═════════════╩══════════════╩════════════════╩══════════════╩═══════════════╩══════════════╩══════════════════╝
 ```
 
 ## Features in Detail 🔍
 
-### Join Analysis
-
-The join analysis functionality helps you:
-- Identify optimal join keys between DataFrames
-- Understand match rates for potential joins
-- Detect type mismatches and necessary coercions
-- View sample values from both sides of the join
-
-### Example
+### Type Coercion
 
 ```python
-# Load customer and order data
-customers = pl.read_csv("customers.csv")
-orders = pl.read_csv("orders.csv")
+# Create DataFrames with different types
+users = pl.DataFrame({
+    "user_id": ["1", "2", "3", "4"],  # String IDs
+    "name": ["Alice", "Bob", "Charlie", "David"],
+})
+
+orders = pl.DataFrame({
+    "user_id": [1, 2, 2, 3],  # Integer IDs
+    "order_amount": [100, 200, 150, 300],
+})
 
 # Analyze join possibilities
-customers.polars_utils.join_analysis(orders)
+users.polars_utils.join_analysis(orders)
 
-# Get detailed join statistics
-results = customers.polars_utils.analyze_joins(orders)
-for result in results:
-    print(f"Match rate for {result.left_column}: {result.left_match_percentage:.1f}%")
+# Convert and join after seeing analysis
+users_converted = users.with_columns([
+    pl.col("user_id").cast(pl.Int64)
+])
+
+joined = users_converted.join(
+    orders,
+    on="user_id",
+    how="left"
+)
+```
+
+### Null Handling
+
+```python
+# Create DataFrames with null values
+customers = pl.DataFrame({
+    "customer_id": [1, 2, None, 4, 5],
+    "email": ["a@ex.com", None, "c@ex.com", "d@ex.com", "e@ex.com"],
+})
+
+purchases = pl.DataFrame({
+    "customer_id": [1, 2, 3, None, 5],
+    "amount": [100, 200, 300, 400, 500],
+})
+
+# Analyze join possibilities
+customers.polars_utils.join_analysis(purchases)
 ```
 
 ## Use Cases 📊
