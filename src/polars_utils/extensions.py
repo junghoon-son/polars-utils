@@ -303,4 +303,3 @@ def register_extensions():
     """
     # The decorators automatically register the extensions
     # This function exists to provide a clear entry point
-    pass

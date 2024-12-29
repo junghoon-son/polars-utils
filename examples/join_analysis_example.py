@@ -167,4 +167,4 @@ Coverage percentage: [green]{(customers_with_orders/total_customers)*100:.1f}%[/
     print(order_distribution)
 
 if __name__ == "__main__":
-    main() 
+    main()

@@ -120,7 +120,7 @@ def test_join_analysis_basic(sample_dfs):
     df1, df2 = sample_dfs
     register_extensions()
     
-    results = df1.polars_utils.analyze_joins(df2)
+    results = df1.polars_utils.analyze_joins(df2)  # type: ignore
     
     # Check that we got results for all possible column combinations
     expected_combinations = len(df1.columns) * len(df2.columns)
