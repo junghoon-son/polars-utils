@@ -17,9 +17,13 @@ class JoinResult:
     right_dtype: str
     left_null_count: int
     right_null_count: int
+    left_total_rows: int
+    right_total_rows: int
+    left_matched_rows: int
+    right_matched_rows: int
+    matched_rows: int  # Total number of relationships
     left_sample_values: List[str]
     right_sample_values: List[str]
-    matched: int  # Number of matching values between columns
     coercion_applied: Optional[str] = None
     error: Optional[str] = None
     
@@ -35,17 +39,17 @@ class JoinResult:
     
     @property
     def left_match_percentage(self) -> float:
-        """Percentage of values in left column that have matches"""
-        if self.left_unique_values == 0:
+        """Percentage of rows in left column that have matches"""
+        if self.left_total_rows == 0:
             return 0.0
-        return (self.matched / self.left_unique_values) * 100
+        return (self.left_matched_rows / self.left_total_rows) * 100
     
     @property
     def right_match_percentage(self) -> float:
-        """Percentage of values in right column that have matches"""
-        if self.right_unique_values == 0:
+        """Percentage of rows in right column that have matches"""
+        if self.right_total_rows == 0:
             return 0.0
-        return (self.matched / self.right_unique_values) * 100
+        return (self.right_matched_rows / self.right_total_rows) * 100
 
 def coerce_for_join(df: pl.DataFrame, column: str, target_type: pl.DataType) -> pl.DataFrame:
     """
@@ -112,7 +116,7 @@ def display_results(results: List[JoinResult]):
     table.add_column("Types")
     table.add_column("Left Match %")
     table.add_column("Right Match %")
-    table.add_column("Matched")
+    table.add_column("Matched Rows")
     table.add_column("Coercion Applied")
     
     # Add rows
@@ -126,7 +130,7 @@ def display_results(results: List[JoinResult]):
             result.type_mismatch_desc if result.has_type_mismatch else str(result.left_dtype),
             left_match_pct,
             right_match_pct,
-            str(result.matched) if result.matched > 0 else "-",
+            str(result.matched_rows) if result.matched_rows > 0 else "-",
             result.coercion_applied or "-"
         )
     
@@ -149,7 +153,7 @@ class PolarsUtils:
     def analyze_joins(self, other_df: pl.DataFrame,
                      exclude_dtypes: Optional[List[type]] = None) -> List[JoinResult]:
         """
-        Analyze potential join relationships between two DataFrames.
+        Analyze potential join relationships between two DataFrames and return results.
         
         Parameters
         ----------
@@ -187,12 +191,12 @@ class PolarsUtils:
                     # Try coercing right to left type first
                     try:
                         right_df = coerce_for_join(other_df, right_col, left_dtype)
-                        coercion_note = f"Coerced right to {left_dtype}"
+                        coercion_note = f"R → {left_dtype}"
                     except:
                         # If that fails, try coercing left to right type
                         try:
                             left_df = coerce_for_join(self._df, left_col, right_dtype)
-                            coercion_note = f"Coerced left to {right_dtype}"
+                            coercion_note = f"L → {right_dtype}"
                         except:
                             pass
                 
@@ -202,7 +206,16 @@ class PolarsUtils:
                 
                 # Find matching values
                 matched_values = left_unique & right_unique
-                matched_count = len(matched_values)
+                
+                if matched_values:
+                    # Count matching rows for both sides
+                    left_matched_rows = left_df.filter(pl.col(left_col).is_in(matched_values)).shape[0]
+                    right_matched_rows = right_df.filter(pl.col(right_col).is_in(matched_values)).shape[0]
+                    
+                    # Total matched rows is the larger of the two (shows total relationships)
+                    matched_rows = max(left_matched_rows, right_matched_rows)
+                else:
+                    left_matched_rows = right_matched_rows = matched_rows = 0
                 
                 result = JoinResult(
                     left_column=left_col,
@@ -213,9 +226,13 @@ class PolarsUtils:
                     right_dtype=right_dtype,
                     left_null_count=self._df[left_col].null_count(),
                     right_null_count=other_df[right_col].null_count(),
+                    left_total_rows=len(self._df),
+                    right_total_rows=len(other_df),
+                    left_matched_rows=left_matched_rows,
+                    right_matched_rows=right_matched_rows,
+                    matched_rows=matched_rows,
                     left_sample_values=[str(x) for x in self._df[left_col].drop_nulls().head(3).to_list()],
                     right_sample_values=[str(x) for x in other_df[right_col].drop_nulls().head(3).to_list()],
-                    matched=matched_count,
                     coercion_applied=coercion_note
                 )
                 
@@ -247,9 +264,13 @@ class PolarsUtils:
                     right_dtype=right_dtype,
                     left_null_count=left_null_count,
                     right_null_count=right_null_count,
+                    left_total_rows=len(self._df),
+                    right_total_rows=len(other_df),
+                    left_matched_rows=0,
+                    right_matched_rows=0,
+                    matched_rows=0,
                     left_sample_values=left_sample_values,
                     right_sample_values=right_sample_values,
-                    matched=0,
                     coercion_applied=None,
                     error=str(e)
                 )
@@ -261,123 +282,9 @@ class PolarsUtils:
                      reverse=True)
 
     def join_analysis(self, other_df: pl.DataFrame,
-                     exclude_dtypes: Optional[List[type]] = None) -> List[JoinResult]:
+                          exclude_dtypes: Optional[List[type]] = None):
         """
-        Analyze potential join relationships between two DataFrames.
-        
-        Parameters
-        ----------
-        other_df : pl.DataFrame
-            The DataFrame to analyze joins with
-        exclude_dtypes : List[type], optional
-            List of dtypes to exclude from analysis
-            
-        Returns
-        -------
-        List[JoinResult]
-            List of join analysis results
-        """
-        results = []
-        exclude_dtypes = exclude_dtypes or []
-        
-        # Get all column combinations
-        column_pairs = list(product(self._df.columns, other_df.columns))
-        
-        for left_col, right_col in track(column_pairs, description="Analyzing joins..."):
-            # Skip excluded dtypes
-            left_dtype = self._df[left_col].dtype
-            right_dtype = other_df[right_col].dtype
-            
-            if type(left_dtype) in exclude_dtypes or type(right_dtype) in exclude_dtypes:
-                continue
-            
-            try:
-                # Try coercing types if they don't match
-                left_df = self._df
-                right_df = other_df
-                coercion_note = None
-                
-                if left_dtype != right_dtype:
-                    # Try coercing right to left type first
-                    try:
-                        right_df = coerce_for_join(other_df, right_col, left_dtype)
-                        coercion_note = f"Coerced right to {left_dtype}"
-                    except:
-                        # If that fails, try coercing left to right type
-                        try:
-                            left_df = coerce_for_join(self._df, left_col, right_dtype)
-                            coercion_note = f"Coerced left to {right_dtype}"
-                        except:
-                            pass
-                
-                # Get unique values from both columns
-                left_unique = set(left_df[left_col].unique().drop_nulls())
-                right_unique = set(right_df[right_col].unique().drop_nulls())
-                
-                # Find matching values
-                matched_values = left_unique & right_unique
-                matched_count = len(matched_values)
-                
-                result = JoinResult(
-                    left_column=left_col,
-                    right_column=right_col,
-                    left_unique_values=len(left_unique),
-                    right_unique_values=len(right_unique),
-                    left_dtype=left_dtype,
-                    right_dtype=right_dtype,
-                    left_null_count=self._df[left_col].null_count(),
-                    right_null_count=other_df[right_col].null_count(),
-                    left_sample_values=[str(x) for x in self._df[left_col].drop_nulls().head(3).to_list()],
-                    right_sample_values=[str(x) for x in other_df[right_col].drop_nulls().head(3).to_list()],
-                    matched=matched_count,
-                    coercion_applied=coercion_note
-                )
-                
-            except Exception as e:
-                # Even if join fails, try to get diagnostics
-                try:
-                    left_dtype = str(self._df.select(left_col).schema[left_col])
-                    right_dtype = str(other_df.select(right_col).schema[right_col])
-                    left_null_count = self._df[left_col].null_count()
-                    right_null_count = other_df[right_col].null_count()
-                    left_sample = self._df[left_col].drop_nulls().head(3).to_list()
-                    right_sample = other_df[right_col].drop_nulls().head(3).to_list()
-                    left_sample_values = [str(x) for x in left_sample]
-                    right_sample_values = [str(x) for x in right_sample]
-                except Exception:
-                    left_dtype = "unknown"
-                    right_dtype = "unknown"
-                    left_null_count = -1
-                    right_null_count = -1
-                    left_sample_values = []
-                    right_sample_values = []
-                
-                result = JoinResult(
-                    left_column=left_col,
-                    right_column=right_col,
-                    left_unique_values=self._df[left_col].n_unique(),
-                    right_unique_values=other_df[right_col].n_unique(),
-                    left_dtype=left_dtype,
-                    right_dtype=right_dtype,
-                    left_null_count=left_null_count,
-                    right_null_count=right_null_count,
-                    left_sample_values=left_sample_values,
-                    right_sample_values=right_sample_values,
-                    matched=0,
-                    coercion_applied=None,
-                    error=str(e)
-                )
-            
-            results.append(result)
-        
-        return sorted(results, 
-                     key=lambda x: (x.left_match_percentage + x.right_match_percentage) / 2, 
-                     reverse=True)
-
-    def join_analysis(self, other_df: pl.DataFrame,
-                     exclude_dtypes: Optional[List[type]] = None):
-        """
-        Analyze and display join possibilities with another DataFrame.
+        Display join analysis results in a formatted table.
         
         Parameters
         ----------

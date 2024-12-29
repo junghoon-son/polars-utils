@@ -39,16 +39,21 @@ def test_join_result_properties():
         right_dtype="Int64",
         left_null_count=1,
         right_null_count=2,
+        left_total_rows=5,
+        right_total_rows=5,
+        left_matched_rows=3,
+        right_matched_rows=4,
+        matched_rows=4,  # Total relationships
         left_sample_values=["1", "2", "3"],
         right_sample_values=["1", "2", "4"],
-        matched=5,
         coercion_applied=None,
         error=None
     )
     
     assert result.has_type_mismatch is False
     assert result.type_mismatch_desc == ""
-    assert result.left_match_percentage == 50.0
+    assert result.left_match_percentage == 60.0  # 3/5
+    assert result.right_match_percentage == 80.0  # 4/5
 
 def test_join_result_type_mismatch():
     """Test JoinResult type mismatch detection."""
@@ -61,9 +66,13 @@ def test_join_result_type_mismatch():
         right_dtype="Utf8",
         left_null_count=1,
         right_null_count=2,
+        left_total_rows=5,
+        right_total_rows=5,
+        left_matched_rows=3,
+        right_matched_rows=4,
+        matched_rows=4,
         left_sample_values=["1", "2", "3"],
         right_sample_values=["1", "2", "4"],
-        matched=5,
         coercion_applied=None,
         error=None
     )
@@ -150,6 +159,8 @@ def test_join_analysis_with_nulls(sample_dfs):
     
     assert id_result.left_null_count == 1
     assert id_result.right_null_count == 1
+    assert id_result.left_match_percentage == 60.0  # 3 out of 5 rows match
+    assert id_result.right_match_percentage == 80.0  # 4 out of 5 rows match
 
 def test_show_join_analysis(sample_dfs, capsys):
     """Test the display functionality of join analysis."""
@@ -163,3 +174,51 @@ def test_show_join_analysis(sample_dfs, capsys):
     assert "Join Analysis Results" in captured.out
     assert "Column" in captured.out
     assert "Match %" in captured.out
+
+def test_join_analysis_one_to_many():
+    """Test join analysis with one-to-many relationship."""
+    # One user has multiple orders
+    users = pl.DataFrame({
+        "user_id": [1, 2, 3, 4],
+        "name": ["A", "B", "C", "D"]
+    })
+    
+    orders = pl.DataFrame({
+        "user_id": [1, 2, 2, 2, 3],  # user 2 has 3 orders
+        "amount": [100, 200, 300, 400, 500]
+    })
+    
+    register_extensions()
+    results = users.polars_utils.analyze_joins(orders)
+    
+    # Find result for user_id join
+    id_result = next(r for r in results 
+                    if r.left_column == "user_id" and r.right_column == "user_id")
+    
+    assert id_result.left_match_percentage == 75.0  # 3 out of 4 users have matches
+    assert id_result.right_match_percentage == 100.0  # all orders match to users
+    assert id_result.matched_rows == 5  # total number of matching rows
+
+def test_join_analysis_many_to_one():
+    """Test join analysis with many-to-one relationship."""
+    # Multiple orders map to one category
+    orders = pl.DataFrame({
+        "category_id": [1, 1, 1, 2, 2],  # 3 orders in cat 1, 2 in cat 2
+        "amount": [100, 200, 300, 400, 500]
+    })
+    
+    categories = pl.DataFrame({
+        "category_id": [1, 2, 3],
+        "name": ["A", "B", "C"]
+    })
+    
+    register_extensions()
+    results = orders.polars_utils.analyze_joins(categories)
+    
+    # Find result for category_id join
+    id_result = next(r for r in results 
+                    if r.left_column == "category_id" and r.right_column == "category_id")
+    
+    assert id_result.left_match_percentage == 100.0  # all orders match to categories
+    assert id_result.right_match_percentage == 66.7  # 2 out of 3 categories have orders
+    assert id_result.matched_rows == 5  # total number of matching rows
