@@ -2,9 +2,12 @@ name: Tests
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - "runner-tests"
   pull_request:
     branches: [ main ]
+    paths:
+      - ".github/workflows/test.yaml"
 
 jobs:
   test:
