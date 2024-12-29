@@ -32,7 +32,8 @@ disable=C0111,  # missing-docstring
         C0412,  # ungrouped-imports
         C0411,  # wrong-import-order
         R0911,  # too-many-return-statements
-        R0916   # too-many-boolean-expressions
+        R0916,  # too-many-boolean-expressions
+        E1101  # attribute-defined-outside-init
 
 [REPORTS]
 output-format=text
