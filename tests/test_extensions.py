@@ -148,14 +148,14 @@ def test_join_analysis_with_type_coercion(sample_dfs):
     """Test join analysis with type coercion."""
     df1, df2 = sample_dfs
     register_extensions()
-    
+
     results = df1.polars_utils.analyze_joins(df2)  # type: ignore
-    
+
     # Find result for 'mixed' column join
     mixed_result = next(
         r for r in results if r.left_column == "mixed" and r.right_column == "mixed"
     )
-    
+
     # Should have successful join despite type mismatch
     assert mixed_result.matched_rows > 0
     assert mixed_result.has_type_mismatch is True
