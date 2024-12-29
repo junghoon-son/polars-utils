@@ -1,7 +1,5 @@
 # Polars Utils 🐻‍❄️
 
-[![PyPI version](https://badge.fury.io/py/polars-utils.svg)](https://badge.fury.io/py/polars-utils)
-[![Python Version](https://img.shields.io/pypi/pyversions/polars-utils.svg)](https://pypi.org/project/polars-utils/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Utilities for Polars DataFrame analysis and manipulation, with a focus on making join operations easier to understand and debug.
