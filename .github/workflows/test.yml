@@ -25,13 +25,14 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install uv
-        uv pip install ".[dev]"
+        uv venv
+        uv pip install -e ".[dev]"
         uv pip install pylint pytest
         
     - name: Run pylint
       run: |
-        pylint src/polars_utils tests examples
+        uv pip run pylint src/polars_utils tests examples
         
     - name: Run tests
       run: |
-        pytest tests/ -v 
+        uv pip run pytest tests/ -v 
