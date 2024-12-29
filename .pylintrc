@@ -4,18 +4,45 @@ persistent=yes
 load-plugins=
 
 [MESSAGES CONTROL]
-disable=C0111,C0103,C0303,W0511,R0903,R0913,W0621,C0301,W0212,R0914,R0902,R0904,W0603,C0302,R0912,R0915,R0801,W0401,W0614,R0201,R0921,W0612,W0105,W0703,W0702,C0325,C0326,C0330,W0613,W0611,C0413,C0412,C0411,R0911,R0916,R0801,R0401,R1705,R1720,R1721,R1722,R1723,R1724,R1725,R1726,R1727,R1728,R1729,R1730,R1731,R1732,R1733,R1734,R1735,R1736,R1737,R1738,R1739,R1740,R1741,R1742,R1743,R1744,R1745,R1746,R1747,R1748,R1749,R1750,R1751,R1752,R1753,R1754,R1755,R1756,R1757,R1758,R1759,R1760,R1761,R1762,R1763,R1764,R1765,R1766,R1767,R1768,R1769,R1770,R1771,R1772,R1773,R1774,R1775,R1776,R1777,R1778,R1779,R1780,R1781,R1782,R1783,R1784,R1785,R1786,R1787,R1788,R1789,R1790,R1791,R1792,R1793,R1794,R1795,R1796,R1797,R1798,R1799,R1800
+disable=C0111,  # missing-docstring
+        C0103,  # invalid-name
+        W0511,  # fixme
+        R0903,  # too-few-public-methods
+        R0913,  # too-many-arguments
+        W0621,  # redefined-outer-name
+        C0301,  # line-too-long
+        W0212,  # protected-access
+        R0914,  # too-many-locals
+        R0902,  # too-many-instance-attributes
+        R0904,  # too-many-public-methods
+        W0603,  # global-statement
+        C0302,  # too-many-lines
+        R0912,  # too-many-branches
+        R0915,  # too-many-statements
+        R0801,  # duplicate-code
+        W0401,  # wildcard-import
+        W0614,  # unused-wildcard-import
+        W0612,  # unused-variable
+        W0105,  # pointless-string-statement
+        W0703,  # broad-except
+        W0702,  # bare-except
+        W0613,  # unused-argument
+        W0611,  # unused-import
+        C0413,  # wrong-import-position
+        C0412,  # ungrouped-imports
+        C0411,  # wrong-import-order
+        R0911,  # too-many-return-statements
+        R0916,  # too-many-boolean-expressions
+        E1101  # attribute-defined-outside-init
 
 [REPORTS]
 output-format=text
-files-output=no
 reports=no
 evaluation=10.0 - ((float(5 * error + warning + refactor + convention) / statement) * 10)
 
 [BASIC]
 good-names=i,j,k,ex,Run,_,df,pl
 bad-names=foo,bar,baz,toto,tutu,tata
-name-group=
 include-naming-hint=no
 function-rgx=[a-z_][a-z0-9_]{2,30}$
 variable-rgx=[a-z_][a-z0-9_]{2,30}$
@@ -34,7 +61,6 @@ docstring-min-length=-1
 max-line-length=120
 ignore-long-lines=^\s*(# )?<?https?://\S+>?$
 single-line-if-stmt=no
-no-space-check=trailing-comma,dict-separator
 max-module-lines=1000
 indent-string='    '
 
@@ -58,7 +84,6 @@ dummy-variables-rgx=_$|dummy
 additional-builtins=
 
 [CLASSES]
-ignore-iface-methods=isImplementedBy,deferred,extends,names,namesAndDescriptions,queryDescriptionFor,getBases,getDescriptionFor,getDoc,getName,getTaggedValue,getTaggedValueTags,isEqualOrExtendedBy,setTaggedValue,isImplementedByInstancesOf,adaptWith,is_implemented_by
 defining-attr-methods=__init__,__new__,setUp
 valid-classmethod-first-arg=cls
 valid-metaclass-classmethod-first-arg=mcs
@@ -77,9 +102,6 @@ max-public-methods=20
 
 [IMPORTS]
 deprecated-modules=regsub,TERMIOS,Bastion,rexec
-import-graph=
-ext-import-graph=
-int-import-graph=
 
 [EXCEPTIONS]
 overgeneral-exceptions=Exception 

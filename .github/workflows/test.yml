@@ -2,9 +2,12 @@ name: Tests
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - "runner-tests"
   pull_request:
     branches: [ main ]
+    paths:
+      - ".github/workflows/test.yaml"
 
 jobs:
   test:
@@ -31,8 +34,8 @@ jobs:
         
     - name: Run pylint
       run: |
-        uv pip run pylint src/polars_utils tests examples
+        uv run pylint src/polars_utils tests examples
         
     - name: Run tests
       run: |
-        uv pip run pytest tests/ -v 
+        uv run pytest tests/ -v 

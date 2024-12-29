@@ -7,6 +7,7 @@ from rich.table import Table
 from rich import box
 from rich.progress import track
 
+
 @dataclass
 class JoinResult:
     left_column: str
@@ -26,24 +27,24 @@ class JoinResult:
     right_sample_values: List[str]
     coercion_applied: Optional[str] = None
     error: Optional[str] = None
-    
+
     @property
     def has_type_mismatch(self) -> bool:
         return self.left_dtype != self.right_dtype
-        
+
     @property
     def type_mismatch_desc(self) -> str:
         if not self.has_type_mismatch:
             return ""
         return f"{self.left_dtype} ↔ {self.right_dtype}"
-    
+
     @property
     def left_match_percentage(self) -> float:
         """Percentage of rows in left column that have matches"""
         if self.left_total_rows == 0:
             return 0.0
         return (self.left_matched_rows / self.left_total_rows) * 100
-    
+
     @property
     def right_match_percentage(self) -> float:
         """Percentage of rows in right column that have matches"""
@@ -51,65 +52,74 @@ class JoinResult:
             return 0.0
         return (self.right_matched_rows / self.right_total_rows) * 100
 
-def coerce_for_join(df: pl.DataFrame, column: str, target_type: pl.DataType) -> pl.DataFrame:
+
+def coerce_for_join(
+    df: pl.DataFrame, column: str, target_type: pl.DataType
+) -> pl.DataFrame:
     """
     Attempts to coerce a column to a target type in a safe way for joining.
     """
     current_type = df.select(column).schema[column]
-    
+
     # If types already match, return original
     if current_type == target_type:
         return df
-        
+
     # Make a copy to avoid modifying original
     df = df.clone()
-    
+
     try:
         # String to numeric conversion
         if isinstance(target_type, (pl.Int64, pl.Int32, pl.Int16, pl.Int8)):
             if isinstance(current_type, pl.Utf8):
                 # Strip whitespace and remove any non-numeric characters
-                df = df.with_columns([
-                    pl.col(column).str.replace(r"[^0-9-]", "")
-                    .cast(target_type, strict=False)
-                    .alias(column)
-                ])
+                df = df.with_columns(
+                    [
+                        pl.col(column)
+                        .str.replace(r"[^0-9-]", "")
+                        .cast(target_type, strict=False)
+                        .alias(column)
+                    ]
+                )
             else:
-                df = df.with_columns([
-                    pl.col(column).cast(target_type, strict=False).alias(column)
-                ])
-                
+                df = df.with_columns(
+                    [pl.col(column).cast(target_type, strict=False).alias(column)]
+                )
+
         # Numeric to string conversion
         elif isinstance(target_type, pl.Utf8):
-            df = df.with_columns([
-                pl.col(column).cast(str, strict=False).alias(column)
-            ])
-            
+            df = df.with_columns([pl.col(column).cast(str, strict=False).alias(column)])
+
     except Exception as e:
         print(f"Warning: Failed to coerce {column} to {target_type}: {e}")
         return df
-        
+
     # Verify the coercion worked
     new_type = df.select(column).schema[column]
     if not isinstance(new_type, type(target_type)):
-        print(f"Warning: Coercion failed - column is still {new_type} instead of {target_type}")
-        
+        print(
+            f"Warning: Coercion failed - column is still {new_type} instead of {target_type}"
+        )
+
     return df
+
 
 def truncate_with_ellipsis(text: str, max_length: int) -> str:
     """Truncate text and add ellipsis if longer than max_length."""
     if len(text) <= max_length:
         return text
-    return text[:max_length-3] + "..."
+    return text[: max_length - 3] + "..."
+
 
 def format_column_name(name: str, max_length: int = 25) -> str:
     """Format column names to be more readable and properly truncated."""
     return truncate_with_ellipsis(name, max_length)
 
+
 def display_results(results: List[JoinResult]):
     """Display join analysis results in a formatted table."""
     table = Table(title="Join Analysis Results", box=box.DOUBLE)
-    
+
     # Add columns
     table.add_column("Left Column")
     table.add_column("Right Column")
@@ -118,24 +128,35 @@ def display_results(results: List[JoinResult]):
     table.add_column("Right Match %")
     table.add_column("Matched Rows")
     table.add_column("Coercion Applied")
-    
+
     # Add rows
     for result in results:
-        left_match_pct = f"{result.left_match_percentage:.1f}%" if result.left_match_percentage > 0 else "-"
-        right_match_pct = f"{result.right_match_percentage:.1f}%" if result.right_match_percentage > 0 else "-"
-        
+        left_match_pct = (
+            f"{result.left_match_percentage:.1f}%"
+            if result.left_match_percentage > 0
+            else "-"
+        )
+        right_match_pct = (
+            f"{result.right_match_percentage:.1f}%"
+            if result.right_match_percentage > 0
+            else "-"
+        )
+
         table.add_row(
             result.left_column,
             result.right_column,
-            result.type_mismatch_desc if result.has_type_mismatch else str(result.left_dtype),
+            result.type_mismatch_desc
+            if result.has_type_mismatch
+            else str(result.left_dtype),
             left_match_pct,
             right_match_pct,
             str(result.matched_rows) if result.matched_rows > 0 else "-",
-            result.coercion_applied or "-"
+            result.coercion_applied or "-",
         )
-    
+
     console = Console()
     console.print(table)
+
 
 def format_error(error: str) -> str:
     """Format error messages to be more concise and readable."""
@@ -145,23 +166,25 @@ def format_error(error: str) -> str:
         return error[:27] + "..."
     return error
 
+
 @pl.api.register_dataframe_namespace("polars_utils")
 class PolarsUtils:
     def __init__(self, df: pl.DataFrame):
         self._df = df
 
-    def analyze_joins(self, other_df: pl.DataFrame,
-                     exclude_dtypes: Optional[List[type]] = None) -> List[JoinResult]:
+    def analyze_joins(
+        self, other_df: pl.DataFrame, exclude_dtypes: Optional[List[type]] = None
+    ) -> List[JoinResult]:
         """
         Analyze potential join relationships between two DataFrames and return results.
-        
+
         Parameters
         ----------
         other_df : pl.DataFrame
             The DataFrame to analyze joins with
         exclude_dtypes : List[type], optional
             List of dtypes to exclude from analysis
-            
+
         Returns
         -------
         List[JoinResult]
@@ -169,24 +192,29 @@ class PolarsUtils:
         """
         results = []
         exclude_dtypes = exclude_dtypes or []
-        
+
         # Get all column combinations
         column_pairs = list(product(self._df.columns, other_df.columns))
-        
-        for left_col, right_col in track(column_pairs, description="Analyzing joins..."):
+
+        for left_col, right_col in track(
+            column_pairs, description="Analyzing joins..."
+        ):
             # Skip excluded dtypes
             left_dtype = self._df[left_col].dtype
             right_dtype = other_df[right_col].dtype
-            
-            if type(left_dtype) in exclude_dtypes or type(right_dtype) in exclude_dtypes:
+
+            if (
+                type(left_dtype) in exclude_dtypes
+                or type(right_dtype) in exclude_dtypes
+            ):
                 continue
-            
+
             try:
                 # Try coercing types if they don't match
                 left_df = self._df
                 right_df = other_df
                 coercion_note = None
-                
+
                 if left_dtype != right_dtype:
                     # Try coercing right to left type first
                     try:
@@ -199,24 +227,28 @@ class PolarsUtils:
                             coercion_note = f"L → {right_dtype}"
                         except:
                             pass
-                
+
                 # Get unique values from both columns
                 left_unique = set(left_df[left_col].unique().drop_nulls())
                 right_unique = set(right_df[right_col].unique().drop_nulls())
-                
+
                 # Find matching values
                 matched_values = left_unique & right_unique
-                
+
                 if matched_values:
                     # Count matching rows for both sides
-                    left_matched_rows = left_df.filter(pl.col(left_col).is_in(matched_values)).shape[0]
-                    right_matched_rows = right_df.filter(pl.col(right_col).is_in(matched_values)).shape[0]
-                    
+                    left_matched_rows = left_df.filter(
+                        pl.col(left_col).is_in(matched_values)
+                    ).shape[0]
+                    right_matched_rows = right_df.filter(
+                        pl.col(right_col).is_in(matched_values)
+                    ).shape[0]
+
                     # Total matched rows is the larger of the two (shows total relationships)
                     matched_rows = max(left_matched_rows, right_matched_rows)
                 else:
                     left_matched_rows = right_matched_rows = matched_rows = 0
-                
+
                 result = JoinResult(
                     left_column=left_col,
                     right_column=right_col,
@@ -231,11 +263,17 @@ class PolarsUtils:
                     left_matched_rows=left_matched_rows,
                     right_matched_rows=right_matched_rows,
                     matched_rows=matched_rows,
-                    left_sample_values=[str(x) for x in self._df[left_col].drop_nulls().head(3).to_list()],
-                    right_sample_values=[str(x) for x in other_df[right_col].drop_nulls().head(3).to_list()],
-                    coercion_applied=coercion_note
+                    left_sample_values=[
+                        str(x)
+                        for x in self._df[left_col].drop_nulls().head(3).to_list()
+                    ],
+                    right_sample_values=[
+                        str(x)
+                        for x in other_df[right_col].drop_nulls().head(3).to_list()
+                    ],
+                    coercion_applied=coercion_note,
                 )
-                
+
             except Exception as e:
                 # Even if join fails, try to get diagnostics
                 try:
@@ -254,7 +292,7 @@ class PolarsUtils:
                     right_null_count = -1
                     left_sample_values = []
                     right_sample_values = []
-                
+
                 result = JoinResult(
                     left_column=left_col,
                     right_column=right_col,
@@ -272,20 +310,23 @@ class PolarsUtils:
                     left_sample_values=left_sample_values,
                     right_sample_values=right_sample_values,
                     coercion_applied=None,
-                    error=str(e)
+                    error=str(e),
                 )
-            
-            results.append(result)
-        
-        return sorted(results, 
-                     key=lambda x: (x.left_match_percentage + x.right_match_percentage) / 2, 
-                     reverse=True)
 
-    def join_analysis(self, other_df: pl.DataFrame,
-                          exclude_dtypes: Optional[List[type]] = None):
+            results.append(result)
+
+        return sorted(
+            results,
+            key=lambda x: (x.left_match_percentage + x.right_match_percentage) / 2,
+            reverse=True,
+        )
+
+    def join_analysis(
+        self, other_df: pl.DataFrame, exclude_dtypes: Optional[List[type]] = None
+    ):
         """
         Display join analysis results in a formatted table.
-        
+
         Parameters
         ----------
         other_df : pl.DataFrame
@@ -296,6 +337,7 @@ class PolarsUtils:
         results = self.analyze_joins(other_df, exclude_dtypes)
         display_results(results)
 
+
 def register_extensions():
     """
     Register all Polars extensions.
@@ -303,4 +345,3 @@ def register_extensions():
     """
     # The decorators automatically register the extensions
     # This function exists to provide a clear entry point
-    pass
