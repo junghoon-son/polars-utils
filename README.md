@@ -57,7 +57,6 @@ Output:
 ╚═════════════╩══════════════╩════════════════╩══════════════╩═══════════════╩══════════════╩══════════════════╝
 ```
 
-## Features in Detail 🔍
 
 ### Type Coercion
 
@@ -75,40 +74,24 @@ orders = pl.DataFrame({
 
 # Analyze join possibilities
 users.polars_utils.join_analysis(orders)
-
-# Convert and join after seeing analysis
-users_converted = users.with_columns([
-    pl.col("user_id").cast(pl.Int64)
-])
-
-joined = users_converted.join(
-    orders,
-    on="user_id",
-    how="left"
-)
 ```
 
-### Null Handling
-
-```python
-# Create DataFrames with null values
-customers = pl.DataFrame({
-    "customer_id": [1, 2, None, 4, 5],
-    "email": ["a@ex.com", None, "c@ex.com", "d@ex.com", "e@ex.com"],
-})
-
-purchases = pl.DataFrame({
-    "customer_id": [1, 2, 3, None, 5],
-    "amount": [100, 200, 300, 400, 500],
-})
-
-# Analyze join possibilities
-customers.polars_utils.join_analysis(purchases)
+Output:
+```
+                                             Join Analysis Results                                              
+╔═════════════╦══════════════╦════════════════╦══════════════╦═══════════════╦══════════════╦══════════════════╗
+║ Left Column ║ Right Column ║ Types          ║ Left Match % ║ Right Match % ║ Matched Rows ║ Coercion Applied ║
+╠═════════════╬══════════════╬════════════════╬══════════════╬═══════════════╬══════════════╬══════════════════╣
+║ user_id     ║ user_id      ║ String ↔ Int64 ║ 75.0%        ║ 100.0%        ║ 4            ║ R → String       ║
+║ user_id     ║ order_amount ║ String ↔ Int64 ║ -            ║ -             ║ -            ║ R → String       ║
+║ name        ║ user_id      ║ String ↔ Int64 ║ -            ║ -             ║ -            ║ R → String       ║
+║ name        ║ order_amount ║ String ↔ Int64 ║ -            ║ -             ║ -            ║ R → String       ║
+╚═════════════╩══════════════╩════════════════╩══════════════╩═══════════════╩══════════════╩══════════════════╝
 ```
 
 ## Use Cases 📊
 
-- **Data Quality**: Validate join relationships between tables
+- **Data Quality**: Validate join relationships between tables, mismapped/misaligned tables.
 - **Data Exploration**: Discover potential relationships between datasets
 - **Debug Joins**: Understand why joins might not be working as expected
 - **Data Integration**: Find matching columns between different data sources
