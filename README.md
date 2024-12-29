@@ -11,7 +11,6 @@ Utilities for Polars DataFrame analysis and manipulation, with a focus on making
 - **Join Analysis**: Automatically analyze potential join relationships between DataFrames
 - **Type Coercion**: Smart type coercion for join operations
 - **Rich Output**: Beautiful formatted tables for analysis results
-- **Null Handling**: Clear visibility of null values in join columns
 - **Match Statistics**: Detailed matching statistics for join columns
 
 ## Installation 📦
@@ -67,7 +66,7 @@ The join analysis functionality helps you:
 - Detect type mismatches and necessary coercions
 - View sample values from both sides of the join
 
-### Real-World Example
+### Example
 
 ```python
 # Load customer and order data
