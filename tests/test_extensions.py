@@ -253,15 +253,15 @@ def test_search_columns():
         "name": ["Alice", "Bob", "Charlie", "David"],
         "email": ["alice@test.com", "bob@test.com", "charlie@test.com", "david@test.com"]
     })
-    
+
     register_extensions()
-    
+
     # Search for 'test.com'
     results = df.polars_utils.search_columns("test.com")  # type: ignore
-    
+
     assert results.shape[0] == 3  # All columns when matches_only=False
     assert results.filter(pl.col("column_name") == "email")["n"][0] == 4  # All emails match
-    
+
     # Search with matches_only=True
     results_matches = df.polars_utils.search_columns("test.com", matches_only=True)  # type: ignore
     assert results_matches.shape[0] == 1  # Only email column has matches
