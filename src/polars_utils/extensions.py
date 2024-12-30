@@ -337,6 +337,62 @@ class PolarsUtils:
         results = self.analyze_joins(other_df, exclude_dtypes)
         display_results(results)
 
+    def regex_search(self, pattern: str, matches_only: bool = False) -> pl.DataFrame:
+        """
+        Search all columns for values matching a regex pattern.
+
+        Parameters
+        ----------
+        pattern : str
+            Regular expression pattern to search for
+        matches_only : bool, default False
+            If True, only show columns with matches
+
+        Returns
+        -------
+        pl.DataFrame
+            DataFrame containing search results with columns:
+            - column_name: Name of the column
+            - matches: List of matching values
+            - n: Number of matches
+            - percent: Percentage of rows with matches
+        """
+        dfs = []
+        row_count = self._df.shape[0]
+
+        for col in self._df.columns:
+            row_df = (
+                self._df.select(pl.col(col).cast(pl.Utf8()))
+                .filter(pl.col(col).str.contains(pattern))
+                .group_by(pl.lit(col).alias("column_name"))
+                .agg(
+                    pl.col(col).alias("matches"),
+                    pl.col(col).len().alias("n")
+                )
+            )
+
+            # Create an empty row if there are no matches
+            if (len(row_df) == 0) and (not matches_only):
+                row_df = pl.DataFrame(
+                    {
+                        "column_name": col,
+                        "matches": pl.Series("empty lists", [[]], dtype=pl.List),
+                        "n": 0,
+                    }
+                )
+
+            # Append the row with casted types
+            dfs.append(
+                row_df.select(
+                    pl.col("column_name").cast(pl.Utf8()),
+                    pl.col("matches").cast(pl.List(pl.Utf8())),
+                    pl.col("n").cast(pl.UInt32()),
+                    (pl.col("n")/pl.lit(row_count)).cast(pl.Float64).alias("percent")
+                )
+            )
+
+        return pl.concat(dfs, how="vertical")
+
 
 def register_extensions():
     """
