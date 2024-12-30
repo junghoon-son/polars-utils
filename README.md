@@ -19,9 +19,70 @@ from polars_utils import register_extensions
 
 register_extensions()
 
-# Analyze join possibilities between customers and orders
-customers.polars_utils.join_analysis(orders)
+# Create sample DataFrames
+df1 = pl.DataFrame({
+    "id": [1, 2, 3, 4, None],
+    "name": ["A", "B", "C", "D", "E"],
+    "value": [10, 20, 30, 40, 50],
+    "mixed": ["1", "2", "3", "4", "5"]
+})
+
+df2 = pl.DataFrame({
+    "id": [1, 2, 3, 3, None],
+    "name": ["A", "B", "C", "C", "F"],
+    "score": [100, 200, 300, 400, 500],
+    "mixed": [1, 2, 3, 4, 5]
+})
+
+# Analyze join possibilities
+df1.polars_utils.join_analysis(df2)
 ```
+
+Output:
+```
+                                             Join Analysis Results                                              
+╔═════════════╦══════════════╦════════════════╦══════════════╦═══════════════╦══════════════╦══════════════════╗
+║ Left Column ║ Right Column ║ Types          ║ Left Match % ║ Right Match % ║ Matched Rows ║ Coercion Applied ║
+╠═════════════╬══════════════╬════════════════╬══════════════╬═══════════════╬══════════════╬══════════════════╣
+║ mixed       ║ mixed        ║ String ↔ Int64 ║ 100.0%       ║ 100.0%        ║ 5            ║ R → String       ║
+║ id          ║ mixed        ║ Int64          ║ 80.0%        ║ 80.0%         ║ 4            ║ -                ║
+║ id          ║ id           ║ Int64          ║ 60.0%        ║ 80.0%         ║ 4            ║ -                ║
+║ name        ║ name         ║ String         ║ 60.0%        ║ 80.0%         ║ 4            ║ -                ║
+╚═════════════╩══════════════╩════════════════╩══════════════╩═══════════════╩══════════════╩══════════════════╝
+```
+
+
+### Type Coercion
+
+```python
+# Create DataFrames with different types
+users = pl.DataFrame({
+    "user_id": ["1", "2", "3", "4"],  # String IDs
+    "name": ["Alice", "Bob", "Charlie", "David"],
+})
+
+orders = pl.DataFrame({
+    "user_id": [1, 2, 2, 3],  # Integer IDs
+    "order_amount": [100, 200, 150, 300],
+})
+
+# Analyze join possibilities
+users.polars_utils.join_analysis(orders)
+```
+
+Output:
+```
+                                             Join Analysis Results                                              
+╔═════════════╦══════════════╦════════════════╦══════════════╦═══════════════╦══════════════╦══════════════════╗
+║ Left Column ║ Right Column ║ Types          ║ Left Match % ║ Right Match % ║ Matched Rows ║ Coercion Applied ║
+╠═════════════╬══════════════╬════════════════╬══════════════╬═══════════════╬══════════════╬══════════════════╣
+║ user_id     ║ user_id      ║ String ↔ Int64 ║ 75.0%        ║ 100.0%        ║ 4            ║ R → String       ║
+║ user_id     ║ order_amount ║ String ↔ Int64 ║ -            ║ -             ║ -            ║ R → String       ║
+║ name        ║ user_id      ║ String ↔ Int64 ║ -            ║ -             ║ -            ║ R → String       ║
+║ name        ║ order_amount ║ String ↔ Int64 ║ -            ║ -             ║ -            ║ R → String       ║
+╚═════════════╩══════════════╩════════════════╩══════════════╩═══════════════╩══════════════╩══════════════════╝
+```
+
 
 ### 2. Data Quality Analysis
 Analyze data quality across your DataFrame:
