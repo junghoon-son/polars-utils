@@ -337,13 +337,13 @@ class PolarsUtils:
         results = self.analyze_joins(other_df, exclude_dtypes)
         display_results(results)
 
-    def search_columns(self, regex: str, matches_only: bool = False) -> pl.DataFrame:
+    def regex_search(self, pattern: str, matches_only: bool = False) -> pl.DataFrame:
         """
-        Search all columns for a regex pattern.
+        Search all columns for values matching a regex pattern.
 
         Parameters
         ----------
-        regex : str
+        pattern : str
             Regular expression pattern to search for
         matches_only : bool, default False
             If True, only show columns with matches
@@ -363,7 +363,7 @@ class PolarsUtils:
         for col in self._df.columns:
             row_df = (
                 self._df.select(pl.col(col).cast(pl.Utf8()))
-                .filter(pl.col(col).str.contains(regex))
+                .filter(pl.col(col).str.contains(pattern))
                 .group_by(pl.lit(col).alias("column_name"))
                 .agg(
                     pl.col(col).alias("matches"),
