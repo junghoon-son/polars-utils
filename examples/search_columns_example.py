@@ -19,4 +19,4 @@ print(results)
 # Search for email pattern
 print("\nSearching for email addresses (matches only):")
 results = df.polars_utils.search_columns(r".*@.*\.com", matches_only=True)
-print(results) 
+print(results)
