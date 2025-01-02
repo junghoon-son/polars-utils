@@ -265,3 +265,31 @@ def test_regex_search():
     # Search with matches_only=True
     results_matches = df.polars_utils.regex_search("test.com", matches_only=True)  # type: ignore
     assert results_matches.shape[0] == 1  # Only email column has matches
+
+
+def test_histogram_creation():
+    """Test histogram creation extension."""
+    df = pl.DataFrame({
+        "category": ["A", "A", "A", "B", "B", "C"],
+        "values": [1, 2, 3, 10, 20, 100]
+    })
+    
+    register_extensions()
+    
+    # Test with groupby
+    result = df.group_by("category").agg(
+        pl.col("values").polars_utils.create_histogram().alias("histogram")
+    )
+    
+    assert len(result) == 3  # Three categories
+    assert all(isinstance(h, str) for h in result["histogram"])
+    
+    # Test with over
+    result = df.with_columns(
+        pl.col("values").polars_utils.create_histogram()
+        .over("category")
+        .alias("histogram")
+    )
+    
+    assert len(result) == len(df)
+    assert all(isinstance(h, str) for h in result["histogram"])

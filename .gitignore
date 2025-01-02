@@ -8,6 +8,7 @@ build/
 develop-eggs/
 dist/
 downloads/
+playground/
 eggs/
 .eggs/
 lib/

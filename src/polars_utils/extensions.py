@@ -394,6 +394,87 @@ class PolarsUtils:
         return pl.concat(dfs, how="vertical")
 
 
+@pl.api.register_expr_namespace("polars_utils")
+class HistogramExpr:
+    def __init__(self, expr: pl.Expr):
+        self._expr = expr
+    
+    def create_histogram(
+        self, 
+        max_width: Optional[int] = 20,
+        chars: str = '▁▂▃▄▅▆▇█',
+        show_stats: bool = True
+    ) -> pl.Expr:
+        """
+        Create a single-line ASCII histogram for numeric data.
+        
+        Parameters
+        ----------
+        max_width : int, optional
+            Maximum width of the histogram. Default is 20.
+        chars : str, optional
+            String of characters to use for different heights.
+            Should have 8 characters. Default is Unicode blocks.
+        show_stats : bool, optional
+            Whether to show min/max values. Default is True.
+        
+        Returns
+        -------
+        pl.Expr
+            Expression that creates histogram strings
+        """
+        def _create_histogram(series_list: List[pl.Series]) -> str:
+            values = series_list[0]
+            
+            # Handle list type by exploding into a Series
+            if isinstance(values.dtype, pl.List):
+                values = pl.Series(values.explode())
+            
+            if len(values) == 0:
+                return ""
+            
+            # Calculate bins manually to avoid None values
+            n_bins = max_width if max_width else 20
+            min_val = values.min()
+            max_val = values.max()
+            
+            if min_val == max_val:
+                hist = chars[-1] * n_bins
+            else:
+                bin_width = (max_val - min_val) / n_bins
+                counts = pl.Series(range(n_bins)).map_elements(
+                    lambda i: values.filter(
+                        (values >= min_val + i * bin_width) &
+                        (values < min_val + (i + 1) * bin_width)
+                    ).len()
+                )
+                
+                # Scale to character levels
+                max_count = counts.max()
+                if max_count > 0:
+                    scaled = (counts * (len(chars) - 1) / max_count).cast(pl.Int64)
+                else:
+                    scaled = pl.Series([0] * n_bins)
+                
+                # Convert to string
+                hist = ''.join(chars[min(max(val, 0), len(chars)-1)] for val in scaled)
+            
+            # Ensure histogram has exact width by padding with spaces
+            hist = f"{hist:<{n_bins}}"
+            
+            # Add min/max values if requested
+            if show_stats:
+                return f"{hist}  [{min_val:.2f}, {max_val:.2f}]"
+            
+            return hist
+        
+        return pl.map_groups(
+            exprs=[self._expr],
+            function=_create_histogram,
+            return_dtype=pl.Utf8
+        )
+
+
 def register_extensions():
     """
     Register all Polars extensions.

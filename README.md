@@ -107,6 +107,30 @@ results = df.polars_utils.regex_search(r".*@.*\.com")
 results = df.polars_utils.regex_search("pattern", matches_only=True)
 ```
 
+### 4. Visual Data Analysis
+Create compact visualizations within your DataFrame:
+- Single-line histograms for numeric columns
+- Group-wise distribution visualization
+- Customizable characters and widths
+- Works with both groupby and window operations
+
+```python
+# Create histograms by category
+df.group_by("category").agg(
+    pl.col("values")
+    .polars_utils.create_histogram()
+    .alias("distribution")
+)
+
+# Add histograms as a column
+df.with_columns(
+    pl.col("values")
+    .polars_utils.create_histogram()
+    .over("category")
+    .alias("distribution")
+)
+```
+
 ## Installation 📦
 
 ```bash
