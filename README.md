@@ -162,7 +162,11 @@ The histograms provide quick visual insights:
 ## Installation 📦
 
 ```bash
-pip install polars-utils
+# The hope is to get this onto PyPI soon.
+# pip install polars-utils
+
+# For now, you can install from GitHub
+pip install -U git+https://github.com/junghoon-son/polars-utils.git
 ```
 
 ## Use Cases 📊
