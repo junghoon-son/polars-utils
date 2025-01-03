@@ -109,8 +109,10 @@ results = df.polars_utils.regex_search("pattern", matches_only=True)
 
 ## Installation 📦
 
+Hoping to get this onto PyPI soon.
+
 ```bash
-pip install polars-utils
+pip install -U git+https://github.com/junghoon-son/polars-utils.git
 ```
 
 ## Use Cases 📊
