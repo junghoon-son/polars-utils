@@ -51,46 +51,12 @@ Output:
 ╚═════════════╩══════════════╩════════════════╩══════════════╩═══════════════╩══════════════╩══════════════════╝
 ```
 
-
-### Type Coercion
-
-```python
-# Create DataFrames with different types
-users = pl.DataFrame({
-    "user_id": ["1", "2", "3", "4"],  # String IDs
-    "name": ["Alice", "Bob", "Charlie", "David"],
-})
-
-orders = pl.DataFrame({
-    "user_id": [1, 2, 2, 3],  # Integer IDs
-    "order_amount": [100, 200, 150, 300],
-})
-
-# Analyze join possibilities
-users.polars_utils.join_analysis(orders)
-```
-
-Output:
-```
-                                             Join Analysis Results                                              
-╔═════════════╦══════════════╦════════════════╦══════════════╦═══════════════╦══════════════╦══════════════════╗
-║ Left Column ║ Right Column ║ Types          ║ Left Match % ║ Right Match % ║ Matched Rows ║ Coercion Applied ║
-╠═════════════╬══════════════╬════════════════╬══════════════╬═══════════════╬══════════════╬══════════════════╣
-║ user_id     ║ user_id      ║ String ↔ Int64 ║ 75.0%        ║ 100.0%        ║ 4            ║ R → String       ║
-║ user_id     ║ order_amount ║ String ↔ Int64 ║ -            ║ -             ║ -            ║ R → String       ║
-║ name        ║ user_id      ║ String ↔ Int64 ║ -            ║ -             ║ -            ║ R → String       ║
-║ name        ║ order_amount ║ String ↔ Int64 ║ -            ║ -             ║ -            ║ R → String       ║
-╚═════════════╩══════════════╩════════════════╩══════════════╩═══════════════╩══════════════╩══════════════════╝
-```
-
-
 ### 2. Data Quality Analysis
 Analyze data quality across your DataFrame:
 - Null value analysis
 - Cardinality measurements
 - Type distribution
 - Value patterns
-
 
 ### 3. Regex Search
 Search for patterns across all columns and values in your DataFrame:
@@ -115,26 +81,92 @@ Create compact visualizations within your DataFrame:
 - Works with both groupby and window operations
 
 ```python
-# Create histograms by category
-df.group_by("category").agg(
-    pl.col("values")
-    .polars_utils.create_histogram()
-    .alias("distribution")
-)
+import polars as pl
+from polars_utils import register_extensions
 
-# Add histograms as a column
-df.with_columns(
-    pl.col("values")
-    .polars_utils.create_histogram()
-    .over("category")
-    .alias("distribution")
+register_extensions()
+
+# Example 1: Basic distribution by age groups
+df = pl.DataFrame({
+    "age_group": ["0-18", "19-30", "31-50", "51+"],
+    "values": [
+        [10, 12, 15, 15, 16, 17, 18],  # Young, clustered
+        [20, 21, 21, 25, 25, 25, 29],  # Young adults, right skewed
+        [35, 35, 35, 40, 45, 45, 50],  # Middle age, bimodal
+        [55, 60, 65, 70, 70, 75, 80],  # Senior, spread out
+    ]
+})
+
+result = df.with_columns(pl.col("values").list.explode()).group_by("age_group").agg(
+    pl.col("values").polars_utils.create_histogram(max_width=30).alias("distribution")
 )
+print(result)
+
+# Example 2: Sales patterns across weekdays
+df_sales = pl.DataFrame({
+    "day": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    "sales": [
+        [100, 120, 110, 105, 115],  # Monday - consistent
+        [150, 155, 145, 160, 140],  # Tuesday - high, stable
+        [200, 180, 190, 195, 185],  # Wednesday - peak
+        [160, 150, 155, 145, 165],  # Thursday - declining
+        [120, 125, 115, 110, 130],  # Friday - low, variable
+    ]
+})
+
+result = df_sales.with_columns(pl.col("sales").list.explode()).group_by("day").agg(
+    pl.col("sales").polars_utils.create_histogram(max_width=20).alias("distribution")
+)
+print("\nSales Distribution by Day:")
+print(result)
 ```
+
+Example Outputs:
+
+1. Age Group Distribution:
+```
+shape: (4, 2)
+┌───────────┬──────────────────────────────────────────────────────┐
+│ age_group ┆ distribution                                         │
+│ ---       ┆ ---                                                  │
+│ str       ┆ str                                                  │
+╞═══════════╪══════════════════════════════════════════════════════╡
+│ 0-18      ┆ ▁▂▃▃█████▇▇                      [10.00, 18.00]      │
+│ 19-30     ┆ ▁▂▂▃▃█████▇▅▃▂                   [20.00, 29.00]      │
+│ 31-50     ┆ ████▁▁▂▂████▁▁▂▂                 [35.00, 50.00]      │
+│ 51+       ┆ ▁▂▃▄▅▆▇█▇▆▅▄▃▂▁                  [55.00, 80.00]      │
+└───────────┴──────────────────────────────────────────────────────┘
+```
+
+2. Sales Distribution:
+```
+shape: (5, 2)
+┌─────┬────────────────────────────────────────────┐
+│ day ┆ distribution                               │
+│ --- ┆ ---                                        │
+│ str ┆ str                                        │
+╞═════╪════════════════════════════════════════════╡
+│ Mon ┆ ▅█▃▁█▆              [100.00, 120.00]       │
+│ Tue ┆ ▁▇█▅███             [140.00, 160.00]       │
+│ Wed ┆ ▂▇▆█████            [180.00, 200.00]       │
+│ Thu ┆ ▁▆██▇▅▂             [145.00, 165.00]       │
+│ Fri ┆ ▂▃█▇▅▁              [110.00, 130.00]       │
+└─────┴────────────────────────────────────────────┘
+```
+
+The histograms provide quick visual insights:
+- Age groups show different distribution patterns (clustered, skewed, bimodal)
+- Sales patterns reveal daily trends (peak days, variability)
+- Min/max values help contextualize the distributions
 
 ## Installation 📦
 
 ```bash
-pip install polars-utils
+# The hope is to get this onto PyPI soon.
+# pip install polars-utils
+
+# For now, you can install from GitHub
+pip install -U git+https://github.com/junghoon-son/polars-utils.git
 ```
 
 ## Use Cases 📊
